@@ -63,6 +63,9 @@ Everything else falls back to secure defaults (see
 
 ## One-time platform bootstrap
 
+**Full walkthrough with expected outputs and troubleshooting:
+[docs/00-execution-guide.md](docs/00-execution-guide.md).** In short:
+
 ```bash
 oc apply -f bootstrap/00-gitops-operator-subscription.yaml   # operator
 oc apply -f bootstrap/01-argocd-cluster-rbac.yaml            # ArgoCD rights
@@ -77,6 +80,7 @@ GitOps console: <https://openshift-gitops-server-openshift-gitops.apps.lab.ocp.l
 
 | Doc | Contents |
 |---|---|
+| [docs/00-execution-guide.md](docs/00-execution-guide.md) | **Start here** — step-by-step: who runs what, where, expected output, troubleshooting |
 | [docs/01-architecture.md](docs/01-architecture.md) | Repo layout, component design, diagram |
 | [docs/02-openshift-gitops-setup.md](docs/02-openshift-gitops-setup.md) | Operator install, RBAC, AppProject details |
 | [docs/03-security-controls.md](docs/03-security-controls.md) | Zero-trust networking, RBAC, quotas, guardrails |
