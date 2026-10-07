@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ .Values.teamName }}-limits
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      default:               # applied when the pod sets no limits
+        cpu: {{ .Values.limits.defaultCpuLimit | quote }}
+        memory: {{ .Values.limits.defaultMemoryLimit | quote }}
+      defaultRequest:        # applied when the pod sets no requests
+        cpu: {{ .Values.limits.defaultCpuRequest | quote }}
+        memory: {{ .Values.limits.defaultMemoryRequest | quote }}
+      max:                   # ceiling per container — protects the quota
+        cpu: {{ .Values.limits.defaultCpuLimit | quote }}
+        memory: {{ .Values.limits.defaultMemoryLimit | quote }}

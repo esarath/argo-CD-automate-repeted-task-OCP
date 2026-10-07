@@ -1,0 +1,35 @@
+# Onboards the analytics team.
+teamName: analytics
+displayName: "Analytics Team"
+
+adminGroups:
+  - ocp-team-analytics-admins
+developerGroups:
+  - ocp-team-analytics-dev
+viewerGroups:
+  - ocp-auditors
+
+quota:
+  cpuRequests: "8"
+  cpuLimits: "16"
+  memoryRequests: 32Gi          # analytics = memory-heavy workloads
+  memoryLimits: 64Gi
+  pods: "40"
+  services: "15"
+  storageRequests: 500Gi
+
+limits:
+  defaultCpuRequest: 200m
+  defaultCpuLimit: 2
+  defaultMemoryRequest: 512Mi
+  defaultMemoryLimit: 4Gi
+
+networkPolicy:
+  defaultDeny: true
+  allowSameNamespace: true
+  allowFromIngress: true
+  allowFromMonitoring: true
+  allowDNS: true
+
+serviceAccount:
+  enabled: false

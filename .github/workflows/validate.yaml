@@ -1,0 +1,106 @@
+name: Validate
+
+# PR gate — runs on every pull request and push to main.
+# A bad team-config.yaml or broken chart never reaches the cluster because
+# merge is blocked until every job is green.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-yaml:
+    name: YAML lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint all YAML (excluding Helm templates)
+        run: |
+          pip install --quiet yamllint
+          yamllint -d relaxed \
+            $(git ls-files '*.yaml' '*.yml' | grep -v 'charts/.*/templates/')
+
+  validate-team-configs:
+    name: Team config schema + policy checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate every teams/*/team-config.yaml
+        run: python3 scripts/validate_team_config.py
+
+  helm-chart:
+    name: Helm lint + template render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - name: helm lint (chart + schema)
+        run: helm lint charts/team-onboarding --set teamName=lint-check
+      - name: Render every team-config through the chart
+        run: |
+          set -e
+          for cfg in teams/*/team-config.yaml; do
+            team=$(basename "$(dirname "$cfg")")
+            echo "=== rendering $team ==="
+            helm template "$team" charts/team-onboarding -f "$cfg" \
+              --set teamName="$team" > /tmp/rendered.yaml
+            grep -q "kind: Namespace" /tmp/rendered.yaml
+            grep -q "kind: ResourceQuota" /tmp/rendered.yaml
+            grep -q "kind: NetworkPolicy" /tmp/rendered.yaml
+          done
+
+  kubeconform:
+    name: Rendered manifests vs Kubernetes schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar xz kubeconform
+          sudo mv kubeconform /usr/local/bin/
+      - name: Schema-validate all bootstrap + argocd manifests
+        run: |
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            bootstrap/ applicationsets/
+      - name: Schema-validate rendered team manifests
+        run: |
+          for cfg in teams/*/team-config.yaml; do
+            team=$(basename "$(dirname "$cfg")")
+            helm template "$team" charts/team-onboarding -f "$cfg" \
+              --set teamName="$team" | \
+            kubeconform -strict -summary -ignore-missing-schemas
+          done
+
+  render-applicationset:
+    name: ApplicationSet sanity — generator produces expected Apps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm every teams/*/team-config.yaml would yield an Application
+        run: |
+          count=$(ls teams/*/team-config.yaml | wc -l)
+          echo "team-config files found: $count"
+          [ "$count" -ge 1 ] || { echo "no team configs — nothing for ApplicationSet"; exit 1; }
+          for cfg in teams/*/team-config.yaml; do
+            dir=$(basename "$(dirname "$cfg")")
+            name=$(grep -E '^teamName:' "$cfg" | awk '{print $2}' | tr -d '"')
+            [ "$dir" = "$name" ] || {
+              echo "MISMATCH: folder 'teams/$dir' but teamName '$name'"; exit 1;
+            }
+          done
+          echo "all folder names match their teamName"

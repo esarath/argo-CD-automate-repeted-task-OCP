@@ -1,0 +1,65 @@
+# AppProject = ArgoCD's multi-tenancy boundary. Every onboarding Application
+# must live in this project, which whitelists:
+#   - WHERE manifests may come from   (sourceRepos)
+#   - WHAT may be created             (clusterResourceWhitelist / namespaceResourceWhitelist)
+#   - WHERE it may be deployed        (destinations)
+#
+# Apply once:  oc apply -f bootstrap/02-appproject-platform-teams.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform-teams
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: gitops-platform
+spec:
+  description: >-
+    Self-service team onboarding. Only resources produced by the
+    team-onboarding chart from this repository are permitted.
+  # Only this repository (and only the git provider over https) may feed Apps.
+  sourceRepos:
+    - https://github.com/esarath/argo-CD-automate-repeted-task-OCP.git
+  # Cluster-scoped resources the project may manage.
+  # Namespace is required; everything else cluster-scoped is denied.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  # Namespaced resources the project may manage.
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: ""
+      kind: ServiceAccount
+  # Deny everything else explicitly (defense in depth).
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: Secret
+  # Apps may deploy into any namespace (the chart creates them), but ONLY
+  # on in-cluster destinations. External clusters are denied.
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  # Prevent Apps in this project from targeting gitops/system namespaces.
+  destinationServiceAccounts: []
+  roles:
+    # Platform engineers get full control of the project in the ArgoCD UI.
+    - name: platform-admin
+      description: Platform engineering administrators
+      groups:
+        - system:cluster-admins
+      policies:
+        - p, proj:platform-teams:platform-admin, *, allow, platform-teams/*, allow
+    # Read-only role for auditors / auditors' dashboards.
+    - name: auditor
+      description: Read-only visibility for compliance
+      groups:
+        - platform-auditors
+      policies:
+        - p, proj:platform-teams:auditor, applications, get, platform-teams/*, allow
+        - p, proj:platform-teams:auditor, logs, get, platform-teams/*, allow

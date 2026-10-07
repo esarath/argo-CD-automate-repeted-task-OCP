@@ -1,0 +1,47 @@
+name: Deploy (post-merge)
+
+# Runs after merge to main. ArgoCD's automated sync is the real deployer —
+# this workflow is a belt-and-braces layer that:
+#   1. verifies the merged tree still renders (final integrity gate)
+#   2. optionally nudges ArgoCD via webhook for instant reconciliation
+#      (otherwise it polls on its ~3 min schedule — fine either way)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  post-merge-verify:
+    name: Render merged state
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - name: Render all teams from merged main
+        run: |
+          set -e
+          for cfg in teams/*/team-config.yaml; do
+            team=$(basename "$(dirname "$cfg")")
+            helm template "$team" charts/team-onboarding -f "$cfg" \
+              --set teamName="$team" > /dev/null
+            echo "rendered: $team"
+          done
+
+  argocd-webhook:
+    name: Notify ArgoCD (optional instant sync)
+    runs-on: ubuntu-latest
+    if: vars.ARGOCD_WEBHOOK_URL != ''
+    steps:
+      - name: Ping ArgoCD webhook endpoint
+        run: |
+          # Without a webhook ArgoCD reconciles every ~3 min anyway.
+          # Configure ARGOCD_WEBHOOK_URL as the GitOps server URL +
+          # /api/webhook to get instant sync on merge.
+          curl -fsS -X POST "${{ vars.ARGOCD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' || echo "webhook ping failed — ArgoCD will still reconcile on schedule"

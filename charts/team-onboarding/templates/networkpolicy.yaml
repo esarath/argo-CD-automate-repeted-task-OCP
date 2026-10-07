@@ -1,0 +1,96 @@
+{{- if .Values.networkPolicy.defaultDeny }}
+# Zero-trust baseline: deny everything, then open explicit holes below.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+{{- end }}
+{{- if .Values.networkPolicy.allowSameNamespace }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+---
+{{- end }}
+{{- if .Values.networkPolicy.allowFromIngress }}
+# OpenShift router pods live in openshift-ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-openshift-ingress
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+---
+{{- end }}
+{{- if .Values.networkPolicy.allowFromMonitoring }}
+# Required so cluster Prometheus can scrape pod /metrics endpoints.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-openshift-monitoring
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: monitoring
+---
+{{- end }}
+{{- if .Values.networkPolicy.allowDNS }}
+# DNS egress to openshift-dns — without this nothing can resolve names.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+          podSelector:
+            matchLabels:
+              dns.operator.openshift.io/daemonset-dns: default
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 5353
+{{- end }}

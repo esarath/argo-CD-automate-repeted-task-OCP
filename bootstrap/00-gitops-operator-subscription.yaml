@@ -1,0 +1,14 @@
+# Installs the Red Hat OpenShift GitOps operator (ArgoCD) cluster-wide.
+# Apply once:   oc apply -f bootstrap/00-gitops-operator-subscription.yaml
+# The operator deploys a ready-to-use ArgoCD instance in openshift-gitops.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-operators
+spec:
+  channel: gitops-1.18
+  installPlanApproval: Automatic
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

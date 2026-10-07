@@ -1,0 +1,104 @@
+# ApplicationSet — the heart of the self-service design.
+#
+# The Git FILES generator scans teams/*/team-config.yaml in this repository.
+# Every file found produces one ArgoCD Application named <teamName>-onboarding,
+# rendering charts/team-onboarding with that file's values.
+#
+# A developer onboards a team by opening ONE pull request that adds
+# teams/<team>/team-config.yaml — after merge, ArgoCD discovers it on the
+# next reconciliation (default ~3 min, or instantly via webhook) and creates
+# the namespace + guardrails automatically. No tickets, no kubectl.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: team-onboarding
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: gitops-platform
+spec:
+  goTemplate: true
+  generators:
+    - git:
+        repoURL: https://github.com/esarath/argo-CD-automate-repeted-task-OCP.git
+        revision: main
+        files:
+          # One Application per team-config.yaml found under teams/
+          - path: "teams/*/team-config.yaml"
+  template:
+    metadata:
+      name: "{{ .teamName }}-onboarding"
+      labels:
+        app.kubernetes.io/part-of: gitops-platform
+        platform/team: "{{ .teamName }}"
+      annotations:
+        argocd.argoproj.io/manifest-generate-paths: "."   # only re-render on relevant change
+    spec:
+      project: platform-teams
+      source:
+        repoURL: https://github.com/esarath/argo-CD-automate-repeted-task-OCP.git
+        targetRevision: main
+        path: charts/team-onboarding
+        helm:
+          # Feed the team-config.yaml straight into the chart as values.
+          valueFiles: []
+          values: |
+            teamName: {{ .teamName | quote }}
+            displayName: {{ .displayName | default .teamName | quote }}
+            admins: {{ .admins | default list | toJson }}
+            adminGroups: {{ .adminGroups | default list | toJson }}
+            developers: {{ .developers | default list | toJson }}
+            developerGroups: {{ .developerGroups | default list | toJson }}
+            viewers: {{ .viewers | default list | toJson }}
+            viewerGroups: {{ .viewerGroups | default list | toJson }}
+            quota:
+              cpuRequests: {{ dig "quota" "cpuRequests" "4" . | toString | quote }}
+              cpuLimits: {{ dig "quota" "cpuLimits" "8" . | toString | quote }}
+              memoryRequests: {{ dig "quota" "memoryRequests" "8Gi" . | toString | quote }}
+              memoryLimits: {{ dig "quota" "memoryLimits" "16Gi" . | toString | quote }}
+              pods: {{ dig "quota" "pods" "50" . | toString | quote }}
+              services: {{ dig "quota" "services" "20" . | toString | quote }}
+              storageRequests: {{ dig "quota" "storageRequests" "100Gi" . | toString | quote }}
+            limits:
+              defaultCpuRequest: {{ dig "limits" "defaultCpuRequest" "100m" . | toString | quote }}
+              defaultCpuLimit: {{ dig "limits" "defaultCpuLimit" "500m" . | toString | quote }}
+              defaultMemoryRequest: {{ dig "limits" "defaultMemoryRequest" "256Mi" . | toString | quote }}
+              defaultMemoryLimit: {{ dig "limits" "defaultMemoryLimit" "1Gi" . | toString | quote }}
+            networkPolicy:
+              defaultDeny: {{ dig "networkPolicy" "defaultDeny" true . }}
+              allowSameNamespace: {{ dig "networkPolicy" "allowSameNamespace" true . }}
+              allowFromIngress: {{ dig "networkPolicy" "allowFromIngress" true . }}
+              allowFromMonitoring: {{ dig "networkPolicy" "allowFromMonitoring" true . }}
+              allowDNS: {{ dig "networkPolicy" "allowDNS" true . }}
+            serviceAccount:
+              enabled: {{ dig "serviceAccount" "enabled" false . }}
+              name: {{ dig "serviceAccount" "name" (printf "%s-deployer" .teamName) . | quote }}
+              withEditRole: {{ dig "serviceAccount" "withEditRole" false . }}
+      destination:
+        server: https://kubernetes.default.svc
+        # The chart creates the Namespace; this is just the Application's home ns.
+        namespace: openshift-gitops
+      syncPolicy:
+        automated:
+          prune: true      # deleting the team folder offboards the namespace
+          selfHeal: true   # drift via manual kubectl/oc is reverted automatically
+        syncOptions:
+          - RespectIgnoreDifferences=true
+          - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m
+      # Ignore live fields that OpenShift mutates on the namespace object.
+      ignoreDifferences:
+        - group: ""
+          kind: Namespace
+          jsonPointers:
+            - /metadata/annotations/openshift.io~1sa.internal.token
+            - /metadata/annotations/openshift.io~1sa.scc.uid-range
+            - /metadata/annotations/openshift.io~1description
+            - /metadata/annotations/openshift.io~1display-name
+            - /metadata/annotations/openshift.io~1requester
+            - /metadata/annotations/openshift.io~1sa.scc.mcs
+            - /metadata/annotations/openshift.io~1sa.scc.supplemental-groups

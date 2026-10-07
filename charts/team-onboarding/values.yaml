@@ -1,0 +1,55 @@
+# Default values for team-onboarding.
+# These are overridden by each team's teams/<name>/team-config.yaml via the
+# ApplicationSet. Only teamName is strictly required.
+
+# -- Team name; becomes the namespace name. DNS-1123 lowercase.
+teamName: ""
+
+# -- Human-readable name for the OpenShift project display.
+displayName: ""
+
+# -- Users granted the OpenShift 'admin' role in the namespace (member
+#    management). Groups must be declared separately below — OpenShift
+#    group names are arbitrary (LDAP/AD), so they cannot be auto-detected.
+admins: []
+adminGroups: []
+
+# -- 'edit': deploy/manage workloads, no RBAC changes.
+developers: []
+developerGroups: []
+
+# -- 'view': read-only.
+viewers: []
+viewerGroups: []
+
+# -- Namespace-level aggregate quota (ResourceQuota).
+quota:
+  cpuRequests: "4"
+  cpuLimits: "8"
+  memoryRequests: 8Gi
+  memoryLimits: 16Gi
+  pods: "50"
+  services: "20"
+  storageRequests: 100Gi
+
+# -- Per-container defaults (LimitRange). Pods without explicit
+#    requests/limits get these; prevents a single pod eating the quota.
+limits:
+  defaultCpuRequest: 100m
+  defaultCpuLimit: 500m
+  defaultMemoryRequest: 256Mi
+  defaultMemoryLimit: 1Gi
+
+# -- Network policy bundle. All enabled by default = zero-trust baseline.
+networkPolicy:
+  defaultDeny: true          # deny all ingress+egress not explicitly allowed
+  allowSameNamespace: true   # pods in this namespace may talk to each other
+  allowFromIngress: true     # openshift-ingress router -> pods
+  allowFromMonitoring: true  # openshift-monitoring prometheus scraping
+  allowDNS: true             # egress to openshift-dns on 53/5353
+
+# -- Optional deploy ServiceAccount (e.g. for the team's CI pipeline).
+serviceAccount:
+  enabled: false
+  name: ""            # defaults to "<teamName>-deployer"
+  withEditRole: false # bind 'edit' to the SA for in-cluster deploys

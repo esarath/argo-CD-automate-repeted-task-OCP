@@ -1,0 +1,13 @@
+{{- include "team-onboarding.validateName" . -}}
+{{- include "team-onboarding.rejectReserved" . -}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+  annotations:
+    openshift.io/display-name: {{ .Values.displayName | default .Values.teamName | quote }}
+    openshift.io/description: "Team {{ .Values.teamName }} — provisioned by GitOps (do not edit manually)"
+    platform/onboarded-by: argocd-applicationset
+    platform/source-repo: "argo-CD-automate-repeted-task-OCP"

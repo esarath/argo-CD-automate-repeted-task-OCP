@@ -1,0 +1,82 @@
+{{- /*
+  Subjects: users → kind User, groups → kind Group (OpenShift LDAP/AD synced
+  groups have arbitrary names, so they are declared in separate lists).
+*/ -}}
+{{- define "team-onboarding.subjects" -}}
+{{- range .users }}
+- kind: User
+  name: {{ . | quote }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- range .groups }}
+- kind: Group
+  name: {{ . | quote }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+{{- if or .Values.admins .Values.adminGroups }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-admin
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  {{- include "team-onboarding.subjects" (dict "users" .Values.admins "groups" .Values.adminGroups) | nindent 2 }}
+---
+{{- end }}
+{{- if or .Values.developers .Values.developerGroups }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-edit
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  {{- include "team-onboarding.subjects" (dict "users" .Values.developers "groups" .Values.developerGroups) | nindent 2 }}
+---
+{{- end }}
+{{- if or .Values.viewers .Values.viewerGroups }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-view
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  {{- include "team-onboarding.subjects" (dict "users" .Values.viewers "groups" .Values.viewerGroups) | nindent 2 }}
+---
+{{- end }}
+{{- if and .Values.serviceAccount.enabled .Values.serviceAccount.withEditRole }}
+# Binds 'edit' to the team deployer SA (CI pipeline deploys into the namespace).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-edit
+  namespace: {{ .Values.teamName }}
+  labels:
+    {{- include "team-onboarding.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "team-onboarding.saName" . }}
+    namespace: {{ .Values.teamName }}
+{{- end }}

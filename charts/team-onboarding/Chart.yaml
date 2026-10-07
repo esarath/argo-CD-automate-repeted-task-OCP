@@ -1,0 +1,16 @@
+apiVersion: v2
+name: team-onboarding
+description: >-
+  Onboards an application team onto OpenShift: Namespace + ResourceQuota +
+  LimitRange + NetworkPolicies + RoleBindings + optional ServiceAccount.
+  One values file per team; rendered by the team-onboarding ApplicationSet.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - openshift
+  - gitops
+  - onboarding
+  - multi-tenancy
+maintainers:
+  - name: platform-engineering

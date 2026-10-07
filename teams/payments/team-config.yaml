@@ -1,0 +1,36 @@
+# Onboards the payments team.
+teamName: payments
+displayName: "Payments Team"
+
+adminGroups:
+  - ocp-team-payments-admins
+developerGroups:
+  - ocp-team-payments-dev
+viewerGroups:
+  - ocp-auditors
+
+quota:
+  cpuRequests: "10"
+  cpuLimits: "20"
+  memoryRequests: 20Gi
+  memoryLimits: 40Gi
+  pods: "80"
+  services: "30"
+  storageRequests: 200Gi
+
+limits:
+  defaultCpuRequest: 100m
+  defaultCpuLimit: 1
+  defaultMemoryRequest: 256Mi
+  defaultMemoryLimit: 2Gi
+
+networkPolicy:
+  defaultDeny: true
+  allowSameNamespace: true
+  allowFromIngress: true
+  allowFromMonitoring: true
+  allowDNS: true
+
+serviceAccount:
+  enabled: true
+  withEditRole: true            # payments CI deploys via this SA

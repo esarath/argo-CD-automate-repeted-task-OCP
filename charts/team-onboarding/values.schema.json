@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "team-onboarding values",
+  "type": "object",
+  "required": [
+    "teamName"
+  ],
+  "properties": {
+    "teamName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63,
+      "description": "DNS-1123 label; becomes the namespace name"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "admins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "adminGroups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "developers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "developerGroups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "viewers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "viewerGroups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "quota": {
+      "type": "object",
+      "properties": {
+        "cpuRequests": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "cpuLimits": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "memoryRequests": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "memoryLimits": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "pods": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "services": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "storageRequests": {
+          "type": [
+            "string",
+            "number"
+          ]
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "defaultCpuRequest": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "defaultCpuLimit": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "defaultMemoryRequest": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "defaultMemoryLimit": {
+          "type": [
+            "string",
+            "number"
+          ]
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "defaultDeny": {
+          "type": "boolean"
+        },
+        "allowSameNamespace": {
+          "type": "boolean"
+        },
+        "allowFromIngress": {
+          "type": "boolean"
+        },
+        "allowFromMonitoring": {
+          "type": "boolean"
+        },
+        "allowDNS": {
+          "type": "boolean"
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "withEditRole": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

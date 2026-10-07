@@ -1,0 +1,73 @@
+# ============================================================================
+# TEAM SELF-SERVICE ONBOARDING — copy this folder and edit the values.
+#
+#   cp -r teams/_template teams/<your-team-name>
+#   edit teams/<your-team-name>/team-config.yaml
+#   open a Pull Request  →  review  →  merge  →  ArgoCD does the rest
+#
+# This file is parsed by the ApplicationSet (git files generator). Only the
+# fields below are consumed; unknown fields are rejected by CI validation.
+#
+# REQUIRED: teamName
+# ============================================================================
+
+# Namespace name. Lowercase DNS-1123 (a-z, 0-9, '-'), max 63 chars.
+# Must match this folder's name: teams/<teamName>/team-config.yaml
+teamName: example-team
+
+# Human-readable project name shown in the OpenShift console.
+displayName: "Example Team"
+
+# ---------------------------------------------------------------------------
+# Access control. Use GROUPS in production (synced from LDAP/AD — see
+# Issue 26 pattern in OCP_Issue-Fix_RCA). Bare names are individual users.
+# ---------------------------------------------------------------------------
+adminGroups: []                 # full control incl. members/RBAC in the ns
+# admins: []                    # individual admin users (avoid; use groups)
+
+developerGroups: []             # deploy + manage workloads, no RBAC changes
+# developers: []
+
+viewerGroups: []                # read-only (auditors, managers, support)
+# viewers: []
+
+# ---------------------------------------------------------------------------
+# Aggregate resource quota for the whole namespace.
+# ---------------------------------------------------------------------------
+quota:
+  cpuRequests: "4"              # sum of pod cpu requests allowed
+  cpuLimits: "8"
+  memoryRequests: 8Gi
+  memoryLimits: 16Gi
+  pods: "50"
+  services: "20"
+  storageRequests: 100Gi
+
+# ---------------------------------------------------------------------------
+# Per-container defaults & ceiling (LimitRange). Pods that omit
+# requests/limits inherit these; no single container may exceed them.
+# ---------------------------------------------------------------------------
+limits:
+  defaultCpuRequest: 100m
+  defaultCpuLimit: 500m
+  defaultMemoryRequest: 256Mi
+  defaultMemoryLimit: 1Gi
+
+# ---------------------------------------------------------------------------
+# Network isolation. Default = zero-trust; disable entries only with a
+# documented reason in the PR description.
+# ---------------------------------------------------------------------------
+networkPolicy:
+  defaultDeny: true             # deny all ingress/egress not allowed below
+  allowSameNamespace: true      # team pods may reach each other
+  allowFromIngress: true        # routes (openshift-ingress) can reach pods
+  allowFromMonitoring: true     # prometheus scraping (keep on!)
+  allowDNS: true                # name resolution (keep on!)
+
+# ---------------------------------------------------------------------------
+# Optional CI/CD deploy ServiceAccount for this namespace.
+# ---------------------------------------------------------------------------
+serviceAccount:
+  enabled: false                # true creates <teamName>-deployer
+  # name: custom-sa-name        # optional override
+  withEditRole: false           # true = SA can deploy into the namespace
